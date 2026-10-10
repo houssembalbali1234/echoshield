@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     redis_url: str
     secret_key: str
 
+    jwt_algorithm: str = "HS256"
+    access_token_minutes: int = 15
+    refresh_token_days: int = 7
+
 
 @lru_cache
 def get_settings() -> Settings:
