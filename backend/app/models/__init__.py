@@ -1,5 +1,6 @@
 from app.models.circle import Circle, CircleKind, CircleMember, CircleRole
 from app.models.device import Device, DeviceStatus
+from app.models.invitation import Invitation
 from app.models.user import User
 
 __all__ = [
@@ -9,5 +10,6 @@ __all__ = [
     "CircleRole",
     "Device",
     "DeviceStatus",
+    "Invitation",
     "User",
 ]
