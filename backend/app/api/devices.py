@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from app.core.clock import immediately
 from app.api.deps import get_current_user
 from app.core.crypto import InvalidPublicKey, normalize_public_key, verify_signature
 from app.db.session import get_db
@@ -73,7 +74,7 @@ async def register_device(
         select(func.count()).select_from(Device).where(Device.user_id == current_user.id)
     )
     now = datetime.now(timezone.utc)
-    activates_at = now if total_count == 0 else now + timedelta(hours=NEW_DEVICE_DELAY_HOURS)
+    activates_at = immediately() if total_count == 0 else now + timedelta(hours=NEW_DEVICE_DELAY_HOURS)
 
     device = Device(
         user_id=current_user.id,
@@ -186,7 +187,7 @@ async def approve_device(
         select(func.count()).select_from(DeviceApproval).where(DeviceApproval.device_id == device.id)
     )
     if approvals >= REQUIRED_APPROVALS:
-        device.activates_at = now
+        device.activates_at = immediately()
 
     await db.commit()
     return DeviceApprovalStatus(

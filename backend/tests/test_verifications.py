@@ -183,3 +183,56 @@ def test_un_etranger_ne_peut_pas_lancer_de_verification(family, make_user, clien
         headers=outsider.headers,
     )
     assert response.status_code == 404
+
+
+# --------------------------------------------------------------------------
+# L'historique
+# --------------------------------------------------------------------------
+
+def history_ids(client, user, role="all", limit=None):
+    params = {"role": role}
+    if limit is not None:
+        params["limit"] = limit
+    response = client.get("/verifications", params=params, headers=user.headers)
+    assert response.status_code == 200, response.text
+    return [v["id"] for v in response.json()]
+
+
+def test_historique_envoye_et_recu(family, client):
+    first = create_verification(client, family.member, family.owner, family.circle_id)
+    second = create_verification(client, family.member, family.owner, family.circle_id)
+
+    # Papa a envoyé les deux demandes, la plus récente en premier.
+    assert history_ids(client, family.member, "sent") == [second, first]
+    assert history_ids(client, family.member, "received") == []
+
+    # Demo les a reçues.
+    assert history_ids(client, family.owner, "received") == [second, first]
+    assert history_ids(client, family.owner, "sent") == []
+
+    # « all » regroupe les deux.
+    assert history_ids(client, family.member) == [second, first]
+
+
+def test_historique_contient_statut_et_risque(family, client):
+    create_verification(client, family.member, family.owner, family.circle_id, note="2000 euros virement urgent")
+    item = client.get("/verifications", headers=family.member.headers).json()[0]
+    assert item["status"] == "pending"
+    assert item["risk"]["level"] == "high"
+
+
+def test_historique_limite(family, client):
+    for _ in range(3):
+        create_verification(client, family.member, family.owner, family.circle_id)
+    assert len(history_ids(client, family.member, limit=2)) == 2
+
+
+def test_historique_role_invalide(family, client):
+    response = client.get("/verifications", params={"role": "tout"}, headers=family.member.headers)
+    assert response.status_code == 422
+
+
+def test_un_etranger_ne_voit_rien_dans_l_historique(family, make_user, client):
+    create_verification(client, family.member, family.owner, family.circle_id)
+    outsider = make_user("outsider")
+    assert history_ids(client, outsider) == []

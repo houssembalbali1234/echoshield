@@ -2,8 +2,10 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.api.deps import get_current_user
@@ -100,6 +102,37 @@ async def create_verification(
     await db.refresh(verification)
     return _out(verification)
 
+@router.get("", response_model=list[VerificationOut])
+async def list_verifications(
+    role: Literal["all", "sent", "received"] = "all",
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[VerificationOut]:
+    query = select(VerificationRequest)
+    if role == "sent":
+        query = query.where(VerificationRequest.requester_id == current_user.id)
+    elif role == "received":
+        query = query.where(VerificationRequest.claimed_user_id == current_user.id)
+    else:
+        query = query.where(
+            or_(
+                VerificationRequest.requester_id == current_user.id,
+                VerificationRequest.claimed_user_id == current_user.id,
+            )
+        )
+
+    result = await db.scalars(query.order_by(VerificationRequest.created_at.desc()).limit(limit))
+    verifications = result.all()
+
+    now = datetime.now(timezone.utc)
+    expired_any = False
+    for verification in verifications:
+        expired_any |= _expire_if_needed(verification, now)
+    if expired_any:
+        await db.commit()
+
+    return [_out(v) for v in verifications]
 
 # Déclarée AVANT /{verification_id}, sinon FastAPI prendrait « incoming » pour un identifiant.
 @router.get("/incoming", response_model=list[IncomingChallenge])

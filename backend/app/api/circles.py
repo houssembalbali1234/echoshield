@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import immediately
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models import Circle, CircleMember, CircleRole, Invitation, User
@@ -64,7 +65,7 @@ async def create_circle(
         CircleMember(
             user_id=current_user.id,
             role=CircleRole.OWNER,
-            trusted_from=datetime.now(timezone.utc),
+            trusted_from=immediately(),
         )
     )
     db.add(circle)
