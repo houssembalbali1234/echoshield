@@ -2,6 +2,7 @@ from app.models.circle import Circle, CircleKind, CircleMember, CircleRole
 from app.models.device import Device, DeviceStatus
 from app.models.invitation import Invitation
 from app.models.user import User
+from app.models.verification import VerificationRequest, VerificationStatus
 
 __all__ = [
     "Circle",
@@ -12,4 +13,6 @@ __all__ = [
     "DeviceStatus",
     "Invitation",
     "User",
+    "VerificationRequest",
+    "VerificationStatus",
 ]

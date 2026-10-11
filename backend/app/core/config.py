@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 15
+    challenge_seconds: int = 120
     refresh_token_days: int = 7
 
 
