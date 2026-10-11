@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.models import VerificationStatus
+from app.schemas.risk import RiskReportOut
 
 
 class VerificationCreate(BaseModel):
@@ -23,6 +24,7 @@ class VerificationOut(BaseModel):
     created_at: datetime
     expires_at: datetime
     responded_at: datetime | None
+    risk: RiskReportOut
 
 
 class IncomingChallenge(BaseModel):

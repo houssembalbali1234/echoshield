@@ -48,9 +48,17 @@ def create_access_token(user_id: uuid.UUID) -> str:
 def create_refresh_token(user_id: uuid.UUID) -> tuple[str, str]:
     return _create_token(user_id, "refresh", timedelta(days=settings.refresh_token_days))
 
+# Tolérance pour les petits décalages d'horloge entre machines (pratique standard).
+CLOCK_SKEW_SECONDS = 10
+
 
 def decode_token(token: str, expected_type: str) -> dict:
-    payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+    payload = jwt.decode(
+        token,
+        settings.secret_key,
+        algorithms=[settings.jwt_algorithm],
+        leeway=CLOCK_SKEW_SECONDS,
+    )
     if payload.get("type") != expected_type:
         raise jwt.InvalidTokenError("Type de jeton invalide")
     return payload

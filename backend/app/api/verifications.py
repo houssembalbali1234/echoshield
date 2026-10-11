@@ -10,6 +10,8 @@ from app.api.deps import get_current_user
 from app.core.crypto import verify_signature
 from app.core.redis import redis_client
 from app.db.session import get_db
+from app.schemas.risk import RiskReportOut
+from app.services.risk import analyze
 from app.models import CircleMember, Device, User, VerificationRequest, VerificationStatus
 from app.schemas.verification import (
     IncomingChallenge,
@@ -44,6 +46,7 @@ def _out(v: VerificationRequest) -> VerificationOut:
         created_at=v.created_at,
         expires_at=v.expires_at,
         responded_at=v.responded_at,
+        risk=RiskReportOut.from_report(analyze(v.note)),
     )
 
 
