@@ -7,6 +7,7 @@ from app.api.circles import router as circles_router
 from app.api.devices import router as devices_router
 from app.api.health import router as health_router
 from app.api.risk import router as risk_router
+from app.api.secret_code import router as secret_code_router
 from app.api.verifications import router as verifications_router
 from app.core.config import get_settings
 from app.core.redis import redis_client
@@ -30,3 +31,4 @@ app.include_router(circles_router, prefix="/api")
 app.include_router(devices_router, prefix="/api")
 app.include_router(verifications_router, prefix="/api")
 app.include_router(risk_router, prefix="/api")
+app.include_router(secret_code_router, prefix="/api")

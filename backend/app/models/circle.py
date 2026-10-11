@@ -33,6 +33,12 @@ class Circle(TimestampMixin, Base):
     )
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
 
+    # Code secret familial : uniquement des hash Argon2, jamais le code en clair.
+    secret_code_hash: Mapped[str | None] = mapped_column(String(255))
+    # Nouveau code en attente : il ne devient actif qu'après le délai de sécurité.
+    next_secret_code_hash: Mapped[str | None] = mapped_column(String(255))
+    next_secret_code_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     members: Mapped[list["CircleMember"]] = relationship(
         back_populates="circle", cascade="all, delete-orphan"
     )
