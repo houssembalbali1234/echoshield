@@ -19,3 +19,15 @@ class DeviceOut(BaseModel):
     created_at: datetime
     revoked_at: datetime | None
     can_confirm: bool
+
+
+class DeviceApprovalRequest(BaseModel):
+    approver_device_id: uuid.UUID
+    signature: str = Field(min_length=20, max_length=500)
+
+
+class DeviceApprovalStatus(BaseModel):
+    device_id: uuid.UUID
+    approvals: int
+    required: int
+    can_confirm: bool
