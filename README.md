@@ -10,7 +10,7 @@ A few seconds of audio are now enough to clone someone's voice. EchoShield prote
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-72%20passing-brightgreen)
+![Tests](https://github.com/houssembalbali1234/echoshield/actions/workflows/tests.yml/badge.svg)
 
 ---
 
