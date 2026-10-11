@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Créer le fichier .env à partir du modèle
+        run: cp .env.example .env
+
+      - name: Démarrer PostgreSQL, Redis et l'API
+        run: docker compose up -d --build
+
+      - name: Attendre que l'API réponde
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:8000/api/health; then
+              echo ""
+              echo "API prête"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "L'API n'a pas démarré à temps"
+          docker compose logs api
+          exit 1
+
+      - name: Appliquer les migrations
+        run: docker compose exec -T api alembic upgrade head
+
+      - name: Lancer les tests
+        run: docker compose exec -T api pytest -v
+
+      - name: Afficher les logs de l'API en cas d'échec
+        if: failure()
+        run: docker compose logs api
