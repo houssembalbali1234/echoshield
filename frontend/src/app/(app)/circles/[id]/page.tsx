@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useCurrentUser } from "@/components/app-shell";
+import { SecretCodeCard } from "@/components/secret-code-card";
 import { Alert, Button, Card } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
 import type { CircleDetail, CircleRole, Invitation } from "@/lib/types";
@@ -156,6 +157,8 @@ export default function CirclePage() {
           })}
         </ul>
       </Card>
+
+      <SecretCodeCard circleId={id} canManage={canManage} />
     </div>
   );
 }

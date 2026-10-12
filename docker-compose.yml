@@ -35,5 +35,15 @@ services:
       redis:
         condition: service_healthy
 
+  web:
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
 volumes:
   pgdata:

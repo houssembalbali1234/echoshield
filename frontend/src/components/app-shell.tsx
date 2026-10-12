@@ -12,6 +12,7 @@ const NAV = [
   { href: "/circles", label: "Mes cercles" },
   { href: "/verify", label: "Vérifier un appel" },
   { href: "/device", label: "Mon téléphone" },
+  { href: "/history", label: "Historique" },
 ];
 
 const UserContext = createContext<User | null>(null);

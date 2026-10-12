@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useCurrentUser } from "@/components/app-shell";
+import { ApproveDeviceCard, RequestApprovalCard } from "@/components/recovery-cards";
 import { Alert, Button, Card, Field } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
 import {
@@ -55,6 +56,7 @@ export default function DevicePage() {
 
   const thisDevice = stored ? devices.find((d) => d.id === stored.deviceId) : undefined;
   const isActive = thisDevice?.status === "active";
+  const canConfirm = isActive && thisDevice?.can_confirm === true;
 
   // 2. Si ce navigateur est un appareil actif : on regarde les défis toutes les 4 secondes.
   useEffect(() => {
@@ -209,6 +211,10 @@ export default function DevicePage() {
         )}
       </Card>
 
+      {isActive && thisDevice && !thisDevice.can_confirm && (
+        <RequestApprovalCard device={thisDevice} onRefresh={() => setVersion((v) => v + 1)} />
+      )}
+
       {isActive && (
         <Card>
           <div className="flex items-center justify-between gap-3">
@@ -226,25 +232,25 @@ export default function DevicePage() {
                     {challenge.requester_name} vérifie si c&apos;est bien vous qui l&apos;appelez.
                   </p>
                   {challenge.note && <p className="mt-1 text-sm text-indigo-900">« {challenge.note} »</p>}
-                                   <p className="mt-1 text-xs text-indigo-800">Expire à {formatTime(challenge.expires_at)}</p>
-                  {!thisDevice?.can_confirm && (
+                  <p className="mt-1 text-xs text-indigo-800">Expire à {formatTime(challenge.expires_at)}</p>
+                  {!canConfirm && thisDevice && (
                     <p className="mt-3 text-sm text-amber-800">
                       Cet appareil est récent : par sécurité, il pourra répondre à partir du{" "}
-                      {thisDevice && formatDate(thisDevice.activates_at)}. Répondez depuis un appareil plus
-                      ancien.
+                      {formatDate(thisDevice.activates_at)}. Répondez depuis un appareil plus ancien, ou faites-le
+                      valider par deux proches.
                     </p>
                   )}
                   <div className="mt-4 flex flex-wrap gap-3">
                     <Button
                       variant="success"
-                      disabled={busy !== null || !thisDevice?.can_confirm}
+                      disabled={busy !== null || !canConfirm}
                       onClick={() => answer(challenge, "confirm")}
                     >
                       Oui, c&apos;est moi
                     </Button>
                     <Button
                       variant="danger"
-                        disabled={busy !== null || !thisDevice?.can_confirm}
+                      disabled={busy !== null || !canConfirm}
                       onClick={() => answer(challenge, "deny")}
                     >
                       Non, ce n&apos;est pas moi
@@ -256,6 +262,8 @@ export default function DevicePage() {
           )}
         </Card>
       )}
+
+      {canConfirm && stored && <ApproveDeviceCard stored={stored} meId={me.id} />}
 
       {devices.length > 0 && (
         <Card>
