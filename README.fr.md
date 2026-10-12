@@ -6,11 +6,13 @@ Quelques secondes d'audio suffisent aujourd'hui pour cloner une voix. EchoShield
 
 🇬🇧 [English version](README.md)
 
+![Tests](https://github.com/houssembalbali1234/echoshield/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
-![Tests](https://github.com/houssembalbali1234/echoshield/actions/workflows/tests.yml/badge.svg)
 
 ---
 
@@ -28,7 +30,7 @@ EchoShield donne à une famille ou à une entreprise trois moyens indépendants 
 | --- | --- | --- |
 | 📱 **Vérification hors canal** | Le téléphone du vrai contact reçoit un défi et signe « Oui, c'est moi » ou « Non, ce n'est pas moi ». | Cloner une voix ne donne pas accès au téléphone de la victime ni à sa clé privée. |
 | 🔑 **Code secret familial** | Les membres conviennent d'une phrase secrète ; l'appelant doit la donner. | L'escroc ne la connaît pas, et il est bloqué après 3 erreurs. |
-| ⚠️ **Moteur de risque** | Analyse le texte de la demande (FR / EN / AR) à la recherche de signaux d'arnaque. | Urgence, argent, secret, cartes cadeaux, nouveau RIB… sont signalés avec leurs raisons. |
+| ⚠️ **Moteur de risque** | Analyse le texte de la demande (FR / EN / AR) pendant la saisie. | Urgence, argent, secret, cartes cadeaux, nouveau RIB… sont signalés avec leurs raisons. |
 
 ### Déroulement d'une vérification
 
@@ -57,15 +59,17 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    P["Demandeur<br/>(web / mobile)"] -->|HTTPS + JWT| API["FastAPI"]
-    D["Appareil du contact<br/>(clé privée)"] -->|réponses signées| API
+    B["Navigateur<br/>Next.js + clé WebCrypto<br/>(non exportable, IndexedDB)"] -->|/api/*| N["Serveur Next.js<br/>(relais)"]
+    N -->|HTTP + JWT| API["FastAPI"]
     API --> PG[("PostgreSQL<br/>utilisateurs, cercles, appareils,<br/>vérifications, audit")]
     API --> RD[("Redis<br/>nonces, jetons de rafraîchissement,<br/>compteurs de blocage")]
 ```
 
+Le navigateur ne parle qu'à son propre serveur : Next.js relaie les appels `/api/*` vers FastAPI. Aucune configuration CORS n'est nécessaire, et l'API n'a pas besoin d'être exposée directement.
+
 ## Modèle de sécurité
 
-Le projet a été construit autour d'une question : *comment un attaquant essaierait-il de le contourner ?* Chaque règle ci-dessous est couverte par un test automatisé.
+Le projet a été construit autour d'une question : *comment un attaquant essaierait-il de le contourner ?* Chaque règle côté serveur ci-dessous est couverte par un test automatisé.
 
 | Menace | Protection |
 | --- | --- |
@@ -73,11 +77,12 @@ Le projet a été construit autour d'une question : *comment un attaquant essaie
 | Copier une signature sur une autre demande | Le message signé lie l'identifiant de la demande, le nonce **et** la décision. |
 | Transformer un « Non » en « Oui » | La décision fait partie du message signé. |
 | Signer avec la clé d'un attaquant | Les signatures sont vérifiées avec la clé publique enregistrée pour cet appareil. |
+| Voler la clé privée de l'appareil | Elle est générée par WebCrypto en **non exportable** : la page peut signer avec, mais aucun code ne peut la lire. |
 | Utiliser un téléphone volé et révoqué | Les appareils révoqués sont refusés avant toute vérification de signature. |
 | Pirater un compte et ajouter un nouveau téléphone | Un nouvel appareil attend 24 h avant de pouvoir confirmer, même après la révocation de tous les autres. |
 | Entrer dans un cercle pour valider sa propre arnaque | Un nouveau membre ne peut rien confirmer pendant 24 h (dire « Non » reste toujours possible). |
 | Deviner le code familial par force brute | 3 erreurs bloquent tout le cercle pendant 15 minutes. |
-| Changer le code familial en douce | Un nouveau code n'est actif qu'après 24 h ; l'ancien reste valable entre-temps. |
+| Changer le code familial en douce | Un nouveau code n'est actif qu'après 24 h ; l'ancien reste valable et tout le cercle voit l'alerte. |
 | Récupérer un téléphone perdu trop facilement | Un nouveau téléphone n'est activé en avance qu'avec **2 validations** de membres de confiance, chacune **signée** par leur propre téléphone. |
 | Aucune réponse | Le silence n'est jamais une confirmation : la demande expire. |
 | Découverte des comptes existants | La connexion renvoie le même message, dans le même temps, pour un e-mail inconnu ou un mauvais mot de passe. |
@@ -88,12 +93,13 @@ Le projet a été construit autour d'une question : *comment un attaquant essaie
 
 | Couche | Technologies |
 | --- | --- |
+| Frontend | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, WebCrypto, IndexedDB |
 | API | Python 3.11, FastAPI, Pydantic v2 |
 | Données | PostgreSQL 16, SQLAlchemy 2 (async), migrations Alembic |
 | Cache et état éphémère | Redis 7 (nonces, jetons de rafraîchissement, blocages) |
-| Sécurité | Argon2 (argon2-cffi), JWT (PyJWT), signatures ECDSA P-256 (cryptography) |
-| Tests | pytest + httpx — 72 tests d'intégration et unitaires |
-| Infrastructure | Docker, Docker Compose |
+| Sécurité | Argon2, JWT (PyJWT), signatures ECDSA P-256 (cryptography + WebCrypto) |
+| Tests | pytest + httpx — 72 tests ; ESLint + vérification TypeScript |
+| Infrastructure | Docker (images multi-étapes), Docker Compose, GitHub Actions |
 
 ## Démarrage
 
@@ -107,13 +113,27 @@ docker compose up -d --build
 docker compose exec api alembic upgrade head
 ```
 
-L'API tourne :
+C'est tout. Les quatre services tournent :
 
-- Documentation interactive : http://localhost:8000/docs
-- État de santé : http://localhost:8000/api/health
+| Service | Adresse |
+| --- | --- |
+| Application web | http://localhost:3000 |
+| Documentation de l'API | http://localhost:8000/docs |
+| État de santé | http://localhost:8000/api/health |
 
 > Avant tout déploiement réel, remplacez `SECRET_KEY` dans `.env` par une longue valeur aléatoire :
 > `docker compose exec api python -c "import secrets; print(secrets.token_urlsafe(64))"`
+
+### Essayer le scénario complet
+
+Utilisez deux navigateurs (ou une fenêtre normale et une fenêtre privée) : chacun joue le rôle d'une personne avec son propre « téléphone ».
+
+1. **Navigateur A** — créez un compte « Ali », puis un cercle, et cliquez sur **Inviter quelqu'un**.
+2. **Navigateur A** — dans **Mon téléphone**, enregistrez ce navigateur. Son premier appareil est actif immédiatement.
+3. **Navigateur B** — créez un compte « Papa », collez le jeton d'invitation dans **Rejoindre un cercle**.
+4. **Navigateur B** — dans **Vérifier un appel**, choisissez Ali et tapez *« 2000 euros par virement, c'est urgent, ne dis rien »* : le risque passe au rouge pendant la saisie. Envoyez.
+5. **Navigateur A** — la demande apparaît dans **Mon téléphone**. Cliquez sur **Non, ce n'est pas moi**.
+6. **Navigateur B** — l'écran passe au rouge : **⛔ Ce n'est PAS Ali.**
 
 ### Lancer les tests
 
@@ -121,19 +141,16 @@ L'API tourne :
 docker compose exec api pytest -v
 ```
 
-### Simuler un téléphone
+### Développer le frontend
 
-Il n'y a pas encore d'application mobile : un petit simulateur génère les paires de clés et signe les défis depuis le terminal.
+Pour un rechargement instantané pendant le développement, arrêtez le conteneur web et utilisez le serveur de Next.js :
 
 ```bash
-# Créer la paire de clés d'un appareil et afficher le Body d'enregistrement
-docker compose exec api python tools/device_sim.py new demo-phone --label "Telephone de Demo"
-
-# Signer un défi renvoyé par GET /api/verifications/incoming
-docker compose exec api python tools/device_sim.py sign demo-phone "echoshield:v1:<id>:<nonce>:confirm"
+docker compose stop web
+cd frontend
+npm install
+npm run dev
 ```
-
-Les clés privées sont enregistrées dans `backend/tools/keys/`, ignoré par Git.
 
 ## Aperçu de l'API
 
@@ -146,8 +163,6 @@ Les clés privées sont enregistrées dans `backend/tools/keys/`, ignoré par Gi
 | Code familial | `PUT/GET /api/circles/{id}/secret-code` · `POST /api/circles/{id}/secret-code/check` |
 | Risque | `POST /api/risk/analyze` |
 
-Les schémas complets sont disponibles dans la documentation interactive, sur `/docs`.
-
 ## Choix de conception
 
 **Pourquoi vérifier la demande plutôt que détecter les deepfakes ?**
@@ -155,6 +170,9 @@ Les détecteurs de deepfakes audio se généralisent mal aux nouveaux générate
 
 **Pourquoi des signatures ECDSA plutôt qu'un simple bouton « Oui » ?**
 Un bouton prouve seulement que *quelqu'un* est connecté au compte. Une signature prouve que la réponse vient d'un appareil physique précis, dont la clé privée ne sort jamais — le même principe que les passkeys.
+
+**Comment le navigateur peut-il servir de « téléphone » ?**
+WebCrypto génère une paire ECDSA P-256 avec une clé privée **non exportable**, rangée dans IndexedDB : le navigateur peut signer avec, mais aucun script ne peut la lire ni l'emporter. WebCrypto produit des signatures au format brut (r‖s) ; le frontend les convertit en DER, le format attendu par le backend, ce qui permet de garder le serveur inchangé et entièrement testé.
 
 **Pourquoi des règles déterministes pour le moteur de risque, et pas un LLM ?**
 Les règles sont prévisibles, explicables (chaque alerte indique les mots exacts qui l'ont déclenchée), testables, gratuites et fonctionnent hors ligne. Un LLM pourra plus tard aider à *extraire* des informations, mais il ne décidera jamais seul du niveau de risque.
@@ -165,23 +183,38 @@ La plupart des prises de contrôle de compte sont remarquées en quelques heures
 **Pourquoi tolérer quelques secondes de décalage d'horloge ?**
 La suite de tests a fait apparaître des échecs aléatoires dus à la dérive d'horloge de la machine virtuelle Docker/WSL2. La validation des JWT utilise désormais une marge de 10 s, et les dates « actif immédiatement » sont antidatées de 30 s. Les délais de 24 h ne sont pas affectés.
 
+## Limites connues
+
+Ce sont des compromis assumés pour un projet de portfolio, documentés pour être corrigés avant toute mise en production :
+
+- **Jetons de session dans `localStorage`** : un script injecté (XSS) pourrait les lire. En production, le jeton de rafraîchissement irait dans un cookie `httpOnly`.
+- **Interrogation périodique** : l'appareil consulte ses défis toutes les 4 secondes. Les notifications Web Push sont prévues pour faire sonner le téléphone.
+- **Pas de limitation du nombre de tentatives de connexion** pour l'instant (seul le code familial est protégé contre la force brute).
+- **Analyse de risque recalculée** à chaque lecture : un changement de règles modifie aussi l'analyse des anciennes demandes. Un audit strict demanderait de l'enregistrer à la création.
+
 ## Structure du projet
 
 ```
 echoshield/
 ├── docker-compose.yml
 ├── .env.example
-└── backend/
-    ├── app/
-    │   ├── api/          # routes FastAPI
-    │   ├── core/         # configuration, sécurité, crypto, Redis, horloge
-    │   ├── db/           # base et session SQLAlchemy
-    │   ├── models/       # modèles de la base de données
-    │   ├── schemas/      # modèles Pydantic des requêtes et réponses
-    │   └── services/     # logique métier (moteur de risque)
-    ├── migrations/       # migrations Alembic
-    ├── tests/            # suite pytest (72 tests)
-    └── tools/            # simulateur de téléphone
+├── .github/workflows/     # intégration continue (backend + frontend)
+├── backend/
+│   ├── app/
+│   │   ├── api/           # routes FastAPI
+│   │   ├── core/          # configuration, sécurité, crypto, Redis, horloge
+│   │   ├── db/            # base et session SQLAlchemy
+│   │   ├── models/        # modèles de la base de données
+│   │   ├── schemas/       # modèles Pydantic des requêtes et réponses
+│   │   └── services/      # logique métier (moteur de risque)
+│   ├── migrations/        # migrations Alembic
+│   ├── tests/             # suite pytest (72 tests)
+│   └── tools/             # simulateur de téléphone en ligne de commande
+└── frontend/
+    └── src/
+        ├── app/           # pages Next.js (connexion, cercles, vérification, téléphone, historique)
+        ├── components/    # interface réutilisable
+        └── lib/           # client de l'API, types, clés WebCrypto
 ```
 
 ## Feuille de route
@@ -192,11 +225,12 @@ echoshield/
 - [x] Moteur de risque (français, anglais, arabe)
 - [x] Code secret familial avec blocage
 - [x] Récupération d'un téléphone par 2 validations signées
-- [ ] Application web Next.js (PWA)
+- [x] Application web Next.js avec clés WebCrypto non exportables
+- [x] Intégration continue avec GitHub Actions
 - [ ] Notifications Web Push pour faire sonner le téléphone du contact
+- [ ] Jeton de rafraîchissement dans un cookie `httpOnly`
 - [ ] Mode Entreprise : workflow de validation des virements (paiements simulés)
 - [ ] Signal audio anti-spoofing optionnel, avec une évaluation honnête
-- [ ] Intégration continue avec GitHub Actions
 
 ## Avertissement
 
